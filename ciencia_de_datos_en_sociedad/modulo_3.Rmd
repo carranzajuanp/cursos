@@ -1,0 +1,477 @@
+---
+title: 
+author: 
+date: 
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: vignette
+---
+
+```{css my-header-colors, echo = FALSE}
+.page-header {
+    background-image: url(logo.png);
+    background-color: #5F698C;
+    background-repeat: no-repeat;
+    background-position: center center;
+    height: 100px;
+}
+```
+
+<center>
+<font size="6"> 
+Ciencia de Datos en Sociedad - Módulo 3
+</font>
+</center>
+<br></br>
+
+
+# Introducción al manejo de datos territoriales
+
+La librería **sf** en R implementa un manejo eficiente y estandarizado de datos espaciales utilizando el modelo de geometrías de características simples (o simple features), un estándar internacional definido por ISO 19125 y desarrollado por el Open Geospatial Consortium (OGC). Este modelo es ampliamente utilizado en herramientas de software geográfico como GeoJSON, ArcGIS, QGIS, PostGIS, MySQL Spatial Extensions, y Microsoft SQL Server, facilitando la interoperabilidad y el análisis de datos geoespaciales en diversos entornos.
+
+En R, el paquete **sf** proporciona una representación poderosa y flexible de datos espaciales vectoriales. Los objetos principales que maneja son extensiones de los clásicos data frames o tibbles, y están diseñados para facilitar la integración con otras herramientas de análisis de datos en R. Cada objeto del tipo sf incluye una columna especial denominada simple feature geometry list column, que almacena la geometría de cada observación en un formato tipo lista. Esta geometría se asocia con una o más variables adicionales (atributos) que describen cada entidad geográfica, lo que convierte cada fila en una simple feature o característica simple, compuesta tanto por sus atributos como por su estructura geométrica.
+
+Además, sf introduce una serie de funciones que permiten realizar transformaciones geométricas, operaciones topológicas y análisis espaciales de manera eficiente, aprovechando bibliotecas subyacentes como GEOS, GDAL y PROJ. Este enfoque no solo facilita la manipulación de datos geoespaciales, sino que también asegura una alta compatibilidad con los formatos y herramientas geográficas más utilizados a nivel global.
+
+Para comenzar, instalamos la librería y la cargamos a nuestro entorno de trabajo:
+
+```{r, message=FALSE, eval=F}
+install.packages("sf")
+library(sf)
+```
+
+```{r, message=FALSE, include=F, echo=F}
+library(sf)
+```
+
+## Tipos de datos espaciales
+
+Es importante distinguir entre los dos tipos principales de datos espaciales: datos **vectoriales** y datos **raster**. Ambos tipos de datos permiten representar información geográfica, pero lo hacen de manera muy diferente.
+
+### Datos vectoriales
+
+Los datos vectoriales son el enfoque utilizado por la librería **sf** y se basan en representaciones geométricas precisas de objetos espaciales a través de **puntos, líneas y polígonos**. Estos son comúnmente llamados features o características simples. Los tipos principales de geometrías que manejan los datos vectoriales son:
+
+#### Puntos (Point)
+
+Representan ubicaciones específicas en un espacio de coordenadas. Cada punto está definido por un par de coordenadas (x, y) en el espacio 2D, o (x, y, z) en el espacio 3D.
+
+Para comprender mejor la lógica, vamos a crear un punto en el espacio bidimensional de las variables *x* e *y*. En primer lugar, definimos un vector con las coordenadas que asignaremos a este punto:
+
+```{r}
+coordenadas = c(5,3)
+coordenadas
+```
+Es decir, el punto estará ubicado en el plano carteriano en una localización definida por x = 5 e y = 3.
+
+A continuación, utilizamos la función *st_point* para convertir a este vector en un objeto espacial, a partir de esas coordinadas definidas previamente:
+
+
+```{r}
+punto <- st_point(coordenadas)
+punto
+```
+Si graficamos este objeto, observamos lo siguiente:
+
+```{r}
+plot(punto, axes = TRUE)
+```
+
+Si bien este punto está localizado en el plano carteriano a partir de los valores 5 (para x) y 3 (para y), la lógica aplica cuando estos valores no representan ejes abstractos sino un sistema de coordenadas dado por la latitud y la longitud. En estos casos, como veremos más adelante, el punto estaría localizado sobre el espacio geográfico.
+
+También podríamos contar con una colección de puntos dentro de un mismo objeto. Para ver esto, en primer lugar definimos un vector de valores para x junto con un vector de valores para y, haciendo:
+
+```{r}
+px = c(5, 4, 2)
+py = c(3, 5, 4)
+```
+
+Ahora, combinamos este conjunto de valores en un mismo data frame mediante la función cbind():
+
+```{r}
+coordenadas <- cbind(px, py)
+coordenadas
+```
+
+Como se puede apreciar, el primer punto estará ubicado en la localización definida por los valores x = 5 e y = 3. El segundo en la localización dada por x = 4 e y = 5, y el tercer punto en la localización definida por el par ordenado x = 2 e y = 4.
+
+Al igual que en el caso de un solo punto, convertimos a este data frame en un objeto espacial, pero ahora utilizando la función st_multipoint():
+
+```{r}
+puntos <- st_multipoint(coordenadas)
+puntos
+```
+
+Graficando este objeto:
+
+```{r}
+plot(puntos, axes = TRUE)
+```
+
+
+#### Líneas
+
+Las líneas son secuencias de puntos conectados que representan entidades lineales como caminos, ríos o vías de tren. Para comprender la lógica de este tipo de datos vectoriales, comencemos por definir un conjunto de coordenadas para la línea "l1".
+
+```{r}
+l1x <- c(0, 3, 5, 8, 10)
+l1y <- c(0, 4, 4, 8, 10)
+coordenadas_l1 <- cbind(l1x, l1y)
+coordenadas_l1
+```
+Es decir que la línea l1 partirá el origen (en donde x = 0 e y = 0), luego se dirigirá hacia el punto dado por x = 3 e y = 4, luego pasará por x = 5 e y = 4, y proseguirá su viaje hasta arribar a destino en la localización dada por el punto x = 10 e y = 10.
+
+A partir de estas coordenadas, vamos a crear un objeto espacial utilizando la función st_linestring():
+
+```{r}
+l1 <- st_linestring(coordenadas_l1)
+plot(l1, axes = TRUE)
+```
+
+A continuación, podemos repetir el mismo procedimiento para crear una línea diferente en el mismo espacio cartesiano:
+
+```{r}
+l2x <- c(2, 3, 12)
+l2y <- c(4, 8, 5)
+coordenadas_l2 <- cbind(l2x, l2y)
+l2 <- st_linestring(coordenadas_l2)
+plot(l2, axes = TRUE)
+```
+
+Finalmente, podemos combinar ambas líneas en un mismo objeto espacial, haciendo uso de la función st_multilinestring():
+
+```{r}
+lineas <- st_multilinestring(list(l1, l2))
+plot(lineas, axes = TRUE)
+```
+
+
+#### Polígonos
+
+Los polígonos son representaciones formadas por líneas que encierran un área, como límites de países, lagos o áreas protegidas. Para comprender la lógica de este tipo de datos vectoriales, comencemos por definir un conjunto de coordenadas para un polígono imaginario en el plano cartesiano.
+
+```{r}
+x <- c(5, 10, 10, 6, 5)
+y <- c(1, 2, 5, 4, 1)
+coordenadas <- cbind(px, py)
+coordenadas
+```
+La conformación del polígono parte de la lectura de esta lista de localizaciones en sentido antihorario. Es decir, la línea que define el contorno del polígono partirá, por ejemplo, del punto dado por x = 5 e y = 1. De allí se dirigirá hacia el punto localizado en x = 10 e y = 2. La línea continuará su viaje por cada uno de estos puntos que marcan los vértices del polígono, para arribar finalmente, de nuevo al punto de partida, dado por x = 5 e y = 1. Para convertir esta lista de coordenadas en un objeto espacial, utilizamos la función st_polygon():
+
+
+```{r, eval=F}
+poligono <- st_polygon(list(coordenadas))
+```
+Si graficamos este objeto, tenemos que:
+
+```{r, echo=F, include=F}
+load("poly.Rda")
+```
+
+```{r}
+plot(poligono, axes = T)
+```
+
+#### Colecciones geométricas
+
+Combinaciones de puntos, líneas y/o polígonos en un solo objeto. Cada una de estas geometrías puede estar acompañada de atributos, como por ejemplo el nombre de una ciudad para un punto, la longitud de una ruta para una línea, o la población de un área para un polígono. Estos atributos permiten realizar análisis espaciales avanzados y crear mapas temáticos. Para armar un objeto espacial que consista en una colección de los puntos, líneas y polígonos construidos anteriormente, utilizamos la función st_geometrycollection().
+
+```{r}
+coleccion <- st_geometrycollection(list(puntos, lineas, poligono))
+plot(st_sfc(coleccion), axes = TRUE)
+```
+
+
+
+### Datos raster
+
+A diferencia de los datos vectoriales, los datos raster dividen el espacio geográfico en una cuadrícula regular de celdas o píxeles. Cada celda contiene un valor numérico que representa información continua o discreta, como la elevación de un terreno, la temperatura en una región o la clasificación del uso del suelo. Los datos raster son ideales para representar fenómenos que varían de manera continua en el espacio, como el clima, la geología o las imágenes satelitales.
+
+A pesar de que la librería **sf** está centrada en datos vectoriales, es común trabajar en conjunto con datos raster, utilizando otras librerías en R como **raster** o **terra** para gestionar y analizar este tipo de datos. Las herramientas modernas permiten realizar análisis espaciales combinados, aprovechando tanto los datos vectoriales (por ejemplo, límites políticos o redes de transporte) como los datos raster (por ejemplo, modelos de elevación digital o imágenes satelitales).
+
+Estructuralmente, los rásters consisten en matrices de valores. Para comprender mejor la lógica de este tipo de objetivos, en primer lugar, construimos una matriz de la siguiente manera:
+
+```{r}
+matriz <- matrix(c(1, 2, 3, 4, 2, NA, 2, 2, 3, 3, 3, 1), ncol = 4, nrow = 3, byrow = TRUE)
+matriz
+```
+A continuación, vamos a utilizar la librería **raster** para convertir esta matriz en un objeto espacial. Primero, instalamos la librería:
+
+```{r, eval=FALSE}
+install.packages("raster")
+```
+
+Posteriormente la cargamos al entorno de trabajo, y utilizamos la función raster() para lograr el objetivo:
+
+```{r}
+library(raster)
+r <- raster(matriz)
+plot(r)
+```
+
+Como se observa en el gráfico, el raster contiene diferentes valores para cada celda. Los valores más bajos se representan en color gris, en tanto que lo valores más altos se representan en color verde. Las celdas representan la estructura de la matriz, en donde, por ejemplo, en la tercera fila (la de abajo) y la tercera columna (la de la derecha) el valor de la celda es igual a 1, mientras que en la primera fila (la de arriba) y la tercera columna el valor asociado es igual a 4. La intersección entre la segunda fila y la segunda columna de la matriz tiene asociado el valor NA, que se representa como una celda en blanco en el gráfico. En R, NA representa un valor faltante o no disponible (Not Available). Es la forma en que R indica que no tiene un valor para una observación en particular, lo que puede suceder por diversas razones, como datos incompletos, errores de entrada o valores omitidos.
+
+
+## Extrayendo datos geográficos abiertos
+
+La comunidad de R ha generado diferentes herramientas para la extracción de datos libres y abiertos de naturaleza geográfica. Una excelente fuente de información de este tipo es Openstreetmap (OSM), que consiste en un proyecto colaborativo que tiene como objetivo crear un mapa mundial libre y editable por cualquier persona. Se basa en la filosofía de crowdsourcing, lo que significa que los datos del mapa son generados y mantenidos por voluntarios de todo el mundo, quienes contribuyen con información sobre calles, edificios, parques, ríos, y muchos otros elementos geográficos. Para compensar la utilización gratuita de información de la cual gozaremos gracias al esfuerzo desinteresado de miles de personas que aportan información al mapa, recomendamos que las personas se creen un usuario en OSM y naveguen por el mapa, contribuyendo a sumar información de sus entornos y a elevar la calidad del mapa colaborativo. Esto puede realizarse en el [www.openstreetmap.org/](https://www.openstreetmap.org/). El [siguiente link](https://wiki.openstreetmap.org/wiki/ES:Gu%C3%ADa_de_principiantes) contiene una guia paso a paso para comenzar a colaborar con el mapeo.
+
+La librería **osmdata** permite extraer datos desde la API de OSM, por lo tanto, comenzamos por instalarla. También instalaremos la librería **nominatimlite**, que necesitaremos para definir entorno geográficos conocidos sólo a partir de su nombre:
+
+```{r, eval=FALSE}
+install.packages("osmdata")
+install.packages("nominatimlite")
+```
+
+A continuación, vamos a definir un entorno geográfico (un polígono) sobre el cuál se acotará la extracción de información de OSM. Este polígono vendrá definido por los límites administrativos de la Municipalidad de Córdoba:
+
+```{r, message=F}
+library(nominatimlite)
+library(osmdata)
+area_de_estudio <- geo_lite_sf(address = "Cordoba, Argentina", points_only = F)
+```
+
+Veamos un poco más de cerca el polígono *area_de_estudio*:
+
+```{r}
+area_de_estudio
+```
+
+Ya entraremos en más detalles respecto a este objeto, pero por lo pronto, notemos que tiene la estructura de un data frame, con una sola fila en donde se observan las siguientes columnas: `r names(area_de_estudio)`. La última columna es la que nos interesa en este momento, dado que es una lista de coordenadas geográficas que nos permitirá visualizar este objeto en un mapa.
+
+Para ello, vamos a hacer uso de la librería **mapview**, que permite la construcción de mapas interactivos de una manera muy sencilla. Instalamos esta librería:
+
+```{r, eval=FALSE}
+install.packages("mapview")
+```
+
+Y a continuación, construimos el mapa:
+
+```{r}
+library(mapview)
+mapview(area_de_estudio)
+```
+
+Al hacer click en el polígono notamos que se abre una ventana con el resto de la información contenida en las columnas restantes. Esta es la principal ventaja de la librería **sf**, que permite mantener la lógica de data frames al trabajar con objetos espaciales.
+
+Ahora que hemos acotado el área sobre la cuál nos interesa extraer información, utilizaremos la librería **osmdata** para hacernos de la información necesaria para ejemplificar los diferentes tipos de objetos espaciales que hemos estado estudiando.
+
+El siguiente bloque de código crea el objeto espacial "comercios" mediante la siguiente lógica: en primer lugar se utiliza la función opq() para acceder al servicio de descarga de información de OSM (una API) definiendo el área sobre la cuál se necesitará extraer la información. Esta área la hemos definido con el polígono "area_de_estudio" que representa los límites administrativos de la ciudad de Córdoba. En segundo lugar, utilizamos la función add_osm_feature() para definir qué tipo de datos queremos extraer de OSM. Openstreetmap tiene una manera de catalogar la información que la comunidad carga, definiendo diferentes códigos para diferentes tipos de objetos. Estos códigos pueden tener un primer agrupamiento, dado por el valor "key", y un segundo agrupamiento dado por el valor "value". En el ejemplo, nos interesa descargar todos los comercios (shops) en el área de estudio, pero podríamos estar interesados en descarga sólo las panaderías (bakery). En este hipotético caso, deberíamos reemplazar la línea correspondiente por *add_osm_feature(key = "shop", value = "bakery")*.  Una exploración detallada de los diferentes criterios de catalogación de la información en OSM se puede realizar en el [siguiente link](https://wiki.openstreetmap.org/wiki/Tags).
+
+```{r}
+comercios <-  opq(area_de_estudio) %>%
+  add_osm_feature(key = "shop") %>%
+  osmdata_sf()
+```
+
+Veamos un poco más de cerca el objeto recientemente creado, llamado "comercios":
+
+```{r}
+comercios
+```
+
+De lo anterior se desprende que este objeto contiene `r nrow(comercios$osm_points)` puntos, y `r nrow(comercios$osm_polygons)`. Esto se debe a que los usuarios pueden marcar la localización de un comercio con un punto, pero también dibujar un polígono que describa grandes superficies comerciales como los shoppings o ferias. Ya veremos cómo trabajar sobre esta dispersión de criterios, pero de momento, vamos a quedarnos sólo con los `r nrow(comercios$osm_points)` puntos.
+
+
+```{r}
+comercios = comercios$osm_points
+```
+
+Veamos un poco en detalle el resultado. La función dim() nos informa sobre la dimensión del data frame resultante.
+
+
+```{r}
+dim(comercios)
+```
+Como vemos, el objeto "comercios" tiene `r dim(comercios)[[1]]` filas y `r dim(comercios)[[2]]` columnas. Es mucha información. Si utilizamos la función names() podemos ver los nombres de cada una de estas columnas:
+
+```{r}
+names(comercios)
+```
+El objeto tiene una columna de geometría (la última) que define las coordenadas geográficas de cada punto, pero también muchas columnas con información adicional, que el usuario que realiza la carga de la información puede o no completar.
+
+Para reducir el ruido de la información resultante, vamos a quedarnos sólo con la columna "shop", que indica el rubro de negocio al cual se dedica cada uno de los comercios:
+
+
+
+```{r}
+comercios = comercios[, c("shop")]
+head(comercios)
+```
+Y a continuación podemos crear un mapa interativo con los datos resultantes:
+
+```{r, warning=F}
+mapview(comercios, col.regions = "blue", legend = F)
+```
+
+Siguiendo el procedimiento anterior, podemos también extraer otros tipos de objetos espaciales. Por ejemplo, las líneas que representan calles o avenidas catalogadas como "vias secundarias". Para ello, en la función add_osm_feature() utilizamos la key "highway" y el value "secondary".
+
+```{r}
+vias_secundarias <- opq(area_de_estudio) %>%
+  add_osm_feature(key = "highway", value = "secondary") %>%
+  osmdata_sf()
+vias_secundarias = vias_secundarias$osm_lines[, c("name")]
+mapview(vias_secundarias, color = "blue", legend = F)
+```
+
+
+Por supuesto, también podemos extraer polígonos. En este caso, por ejemplo, extraeremos los polígonos de las escuelas localizadas dentro del área de estudio haciendo uso de la key "amenity" y el value "school". Entonces:
+
+```{r, warning=FALSE}
+escuelas <- opq(area_de_estudio) %>%
+  add_osm_feature(key = "amenity", value = "school") %>%
+  osmdata_sf()
+escuelas = escuelas$osm_polygons[, c("name")]
+mapview(escuelas, color = "black", col.regions = "red", legend = F)
+```
+
+
+A continuación, exploraremos algunas estrategias para utilizar datos en formato ráster. Para ello, necesitaremos instalar previamente las librerías **terra** y **geodata**.
+
+```{r, eval=FALSE}
+install.packages("terra")
+install.packages("geodata")
+```
+
+A continuación, utilizaremos la librería **geodata** para descargar un modelo digital de elevación en formato ráster. Esta librería permite acceder a informacion libre generada en el marco de la mision Shuttle Radar Topography Mission (SRTM), que determina la elevacion del terreno (en metros sobre el nivel de mar) a traves de un radar incorporado a un satelite. Dado que la informacion se encuentra "precargada" en mozaicos que cubren diferentes extensiones geográficas, se le debe indicar a la función elevation_3s() las coordenadas geográficas de un punto, para que a partir de esta información se puede determinar qué mosaico se va a descargar.
+
+Ahora bien, hasta aquí hemos definido el área de estudio como un polígono definido por el objeto *area_de_estudio*. Como ya sabemos, este polígono no tiene sólo una, sino varias coordenadas que, leidas en sentido antihorario, definen los límites del área. Y la función requiere de sólo un par de coordenadas, es decir, de un punto. Para sortear este inconvneiente, utilizaremos la función st_centroid() de la librería **sf**, que permite calcular el centroide de un polígono, entendido como el punto central de un polígono que se calcula a partir del promedio de las coordinadas geográficas que lo definen. Por lo tanto:
+
+```{r, warning=F}
+coordenadas = st_centroid(area_de_estudio)
+```
+
+A continuación, a este nuevo objeto espacial que representa el centroide del polígono del área de estudio, le extraeremos las coordenadas mediante la función de **sf** st_coordinates:
+
+```{r}
+coordenadas = st_coordinates(coordenadas)
+coordenadas
+```
+
+En donde X representa la longitud (este-oeste) e Y representa la latitud (norte-sur). Ahora sí, estamos en condiciones de utilizar estas dos coordenadas geográficas para indicarle a la función elevation_3s() de la librería **geodata** el lugar para el cual queremos descargar la información sobre la elevación del terreno. La función tiene varios arguementos: el primero (lon) requiere que se informe la longitud calculada recién (el valor de X), y para asgnar ese valor tomamos el primer elemento del objeto *coordenadas*; para informar la latitud (lat) hacemos lo mismo pero con el segundo elemento del objeto *coordenadas*; finalmente, el argumento "path" requiere informar la ruta en la cual se guardará el archivo a descargar, en donde indicamos que se almacene en un directorio temporal (esto lo pueden modificar ustedes, detallando un directorio específico en sus computadoras):
+
+```{r}
+library(geodata)
+library(terra)
+elevacion <- elevation_3s(lon = coordenadas[[1]], lat = coordenadas[[2]], path=tempdir() )
+```
+
+Podemos graficar el ráster descargado:
+
+```{r}
+plot(elevacion)
+```
+
+También podemos hacer un mapa interactivo utilizando la librería **mapview**, pero aparece un pequeño inconveniente. El objeto "elevación" es de tipo `r class(elevacion)[[1]]`, que es el formato con el que la librería **terra** trabaja los rásters. Dado que **mapview** es una librería diseñada con anterioridad a la aparición de la librería **terra**, la interacción de ambas no es óptima. Para sortear este problema, convertimos el objeto "elevación" de `r class(elevacion)[[1]]` a un ráster clásico de la librería **raster**.
+
+```{r, warning=FALSE}
+mapview(raster(elevacion))
+```
+
+Sin embargo, el ráster descargado es mucho más amplio que el área de estudio definida. Para adecuar esta información hacemos uso de la función crop() de la librería **terra**, de la siguiente manera:
+
+```{r}
+cordoba = crop(elevacion, area_de_estudio)
+plot(cordoba)
+```
+
+Y al igual que recién, podemos hacer un mapa interactivo con la salvedad de convertir el objeto "cordoba" al formato correpondiente:
+
+```{r, warning=FALSE}
+mapview(raster(cordoba))
+```
+
+<br></br>
+
+## Cargar datos de manera local (desde la PC)
+
+Si bien hasta ahora hemos descargado una amplia gama de archivos con datos espaciales directamente desde internet, hay muchas fuentes de información que no tienen sevicios para conectarse directamente y requieren de la descarga previa de algún archivo. Los archivos en formato geográfico más conmunes son aquellos con las extensiones *gkpg*, *kmz*, *geojson* o *shp*. Sin embargo, cualquier archivo que tenga una columna con la lista de coordenadas geográficas de cada fila puede convertirse en un objeto espacial, incluso una simple hoja de cálculo.
+
+Vamos a utilizar la función st_read() de la librería *sf* para cargar al entorno de trabajo el archivo *barrios_cordoba.gpkg*, creando un nuevo objeto llamado "barrios", y generamos el mapa interactivo correspondiente:
+
+```{r, message=FALSE}
+barrios <- st_read("barrios_cordoba.gpkg")
+mapview(barrios)
+```
+
+
+Como se mencionó, existen muchos portales que ofrecen descargas de información geográfica que puede ser luego cargada de esta manera al entorno de trabajo en R. Recomendamos revisar los portales [poblaciones.org](https://poblaciones.org/), [datos abiertos de la Municipalidad de Córdoba](https://gobiernoabierto.cordoba.gob.ar/data/datos-abiertos/categoria/geografia-y-mapas), el portal de la [Infraestructura de Datos Espaciales de la Provincia de Córdoba](https://www.mapascordoba.gob.ar/#/mapas), el portal del [INDEC](https://www.indec.gob.ar/indec/web/Institucional-Indec-Codgeo). Y hay muchos otros.
+
+
+## Operaciones con datos espaciales
+
+A continuación, analizaremos algunas funciones de la librería **sf** que permiten realizar diferentes operaciones con datos espaciales. Comenzaremos por la realización de uniones entre diferentes objetos espaciales. La lógica de esta operación implica, por ejemplo, identificar los atributos de objetos que comparten una localización o localizaciones próximas.Supongamos que nos interesa imputar a cada escuela el barrio al que pertenece. Para ello, utilizaremos la función st_join(). Esta función tiene 3 argumentos. En primer lugar se indica el objeto espacial sobre el que se desea agregar un atributo correspondiente a otro objeto espacial, en este caso, las escuelas. En segundo lugar se indica el objeto espacial desde dónde se desea transferir el atributo correspondiente, en este caso, el nombre del barrio. En tercer lugar, se debe indicar el criterio de union. En este caso, se indica la opción "st_intersects" que establece que ambos objetos deben unirse siempre que se intersecten en algún punto. Hay un cuarto argumento, que no es obligatorio utilizar, pero suele ser útil: se trata de a opción "largest". En el caso de asignarle el valor "TRUE", y en el frecuente caso de que una feature de un objeto se intersecte con dos o más features del otro objeto (por ejemplo, que una escuela esté ubicada en el límite de dos barrios, con una parte en uno y otra parte en otro) esta opción vinculará los datos de aquellas que compartan la mayor proporción del espacio.
+
+```{r, echo=FALSE, include=FALSE}
+escuelas = st_transform(escuelas, 4326)
+barrios = st_transform(barrios, 4326)
+barrios = sf::st_make_valid(barrios)
+```
+
+
+```{r}
+escuelas = st_join(escuelas, barrios[,c("description")], join = st_intersects, largest = TRUE)
+head(escuelas)
+```
+Como vemos, se ha agregado una columna que informa el barrio al que pertenece cada escuela.
+
+Ahora, con esta nueva información, podemos realizar algunas agregaciones no espaciales, pero que tendrán correlato a nivel geográfico. Por ejemplo, supongamos que nos interesa saber la cantidad de escuelas que hay en cada barrio. Para ello, recuperando lo estudiado en módulos anteriores, hacemos uso de las funciones group_by() y summarise() de la librería **dplyr**. Antes de proceder a calcular ese resumen de cantidad de escuelas por barrio, vamos a remover los atributos espaciales del objeto "escuelas". Esto lo haremos utilizando la función st_drop_geometry(), que básicamente convierte a data frame todo objeto espacial. Entonces
+
+```{r, message=FALSE}
+library(dplyr)
+tabla <- st_drop_geometry(escuelas) %>% 
+  group_by(description) %>% 
+  summarise(cantidad = n()) %>% 
+  arrange(desc(cantidad))
+head(tabla)
+```
+
+Ahora supongamos que nos interesa confeccionar un mapa que informe sobre la cantidad de escuelas en cada barrio. Vamos a hacer una unión **no** espacial entre este objeto no espacial llamado "tabla" con el objeto espacial llamado "barrios". La llave para unir ambas tablas será el campo *description* que se encuentra presente en ambas. Por lo tanto:
+
+```{r}
+barrios = left_join(barrios, tabla)
+```
+
+Ahora sí, confeccionamos un mapa interactivo que informe sobre la cantidad de escuelas en cada barrio de la ciudad. Como es usual, hacemos uso de la función mapview(), agregando ahora el argumento "zcol" que indica sobre qué columna se pretende agregar una paleta de colores a la representación gráfica. 
+
+
+```{r}
+mapview(barrios, zcol = "cantidad")
+```
+
+Es importante notar que muchos barrios (`r table(is.na(barrios$cantidad))[[2]]` de un total de `r nrow(barrios)`) tienen NA en el campo "cantidad". Esto se debe a que, del total de escuelas descargadas desde OSM, ninguna se encuentra localizada dentro del polígono de cada uno de estos barrios. Conviene recordar en este punto que la fuente de información desde la cual se extrajo el dato de escuelas no es oficial, sino que se trata de un mapa colaborativo en el que, seguramente, faltan varias por agregar (aprovachamos para reforzar la necesidad de colaborar con OSM para mejorar la calidad de esta información).
+
+
+Sobre el mapa anterior podemos agregar las escuelas, para asegurarnos de que, efectivamente, no hay ninguna en los barrios que aparecen con valores NA (en gris en el mapa anterior):
+
+```{r}
+mapview(barrios, zcol = "cantidad") +
+  mapview(escuelas, col.regions = "red")
+```
+
+Otra operación espacial interesante consiste en la unión de diferentes features. Por ejemplo, supongamos que nos interesa unir los barrios Centro, Nueva Córdoba y Alberdi. Lo primero que vamos a hacer es filtrar esos barrios utilizando la función filter().
+
+```{r}
+barrios <- barrios %>% filter(description %in% c("CENTRO","NUEVA CORDOBA","ALBERDI"))
+mapview(barrios)
+```
+
+Como vemos, el objeto espacial "barrios" tiene ahora sólo 3 filas o features, una para cada barrio. Vamos a unir estas 3 features en un solo polígono, utilizando la función st_union() de la librería **sf**.
+
+```{r}
+barrios = st_union(barrios)
+mapview(barrios)
+```
+
+Como vemos, ahora el objeto tiene sólo un polígono, resultante de la union de los 3 barrios anteriores.
+
+Supongamos que nos interesa ver sólo las escuelas que se encuentran dentro de este nuevo polígono. Para ello, utilizaremos la función st_intersection() de la librería **sf**. Esta función tiene sólo dos argumentos: el primero consiste en la capa sobre la que se quiere seleccionar las features (las escuelas en nuestro ejemplo), y el segundo representa el área sobre la cuál se desea realizar la selección (el polígono de los 3 barrios unidos). Entonces:
+
+```{r}
+escuelas = st_intersection(escuelas, barrios)
+mapview(escuelas)
+```
+
+El objeto espacial resultante contiene ahora exclusivamente las `r nrow(escuelas)` que se encuentran localizadas dentro de los 3 barrios seleccionados.
+
